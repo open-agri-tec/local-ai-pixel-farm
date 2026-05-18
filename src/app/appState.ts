@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { Monster } from '../monster/MonsterModel';
 import type { Feed } from '../feed/FeedModel';
 import type { FarmRecord } from '../records/RecordModel';
-import { loadState, saveState } from './storage';
+import { clearState, loadState, saveState } from './storage';
 
 export type Screen = 'home' | 'egg' | 'feedCreate' | 'feed' | 'records';
 
@@ -63,6 +63,7 @@ export function useAppState() {
   }, []);
 
   const resetState = useCallback(() => {
+    clearState();
     setState(INITIAL);
   }, []);
 
