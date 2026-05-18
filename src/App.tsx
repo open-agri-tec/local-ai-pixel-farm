@@ -1,7 +1,7 @@
 // アプリルート
 // 画面ルーティングと状態管理の起点
 
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useAppState } from './app/appState';
 import { NavButtons } from './components/NavButtons';
 import { HomeScreen } from './screens/HomeScreen';
@@ -24,13 +24,18 @@ export function App(): JSX.Element {
 
   const { currentScreen, feeds, records } = state;
   const hasMonster = currentMonster !== null;
+  const [pendingFeed, setPendingFeed] = useState<Feed | null>(null);
 
-  // エサ一覧からエサやりするハンドラ（FeedScreen → HomeScreen に戻りつつ給餌）
-  const handleFeedFromList = useCallback((_feed: Feed) => {
+  // エサ一覧から選んだエサを HomeScreen に渡し、既存の給餌シーケンスで再生する
+  const handleFeedFromList = useCallback((feed: Feed) => {
     if (!currentMonster) return;
-    // 現段階では home に戻るだけ。Phase 2 でエサを HomeScreen に渡す仕組みを追加予定
+    setPendingFeed(feed);
     navigate('home');
   }, [currentMonster, navigate]);
+
+  const clearPendingFeed = useCallback(() => {
+    setPendingFeed(null);
+  }, []);
 
   const handleFeedCreate = useCallback((feed: Feed) => {
     addFeed(feed);
@@ -63,6 +68,8 @@ export function App(): JSX.Element {
             monster={currentMonster}
             onMonsterUpdate={updateMonster}
             onRecordAdd={addRecord}
+            pendingFeed={pendingFeed}
+            onPendingFeedConsumed={clearPendingFeed}
             onGoFeed={() => navigate('feed')}
             onGoCreate={() => navigate('feedCreate')}
           />
