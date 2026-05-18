@@ -4,7 +4,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Monster, MonsterMood, AnimationKind, FoodPhase } from '../monster/MonsterModel';
-import type { FeedCategory } from '../feed/FeedModel';
+import type { Feed, FeedCategory } from '../feed/FeedModel';
 import type { FarmRecord } from '../records/RecordModel';
 import { MonsterRenderer } from '../monster/MonsterRenderer';
 import { StatusPanel } from '../components/StatusPanel';
@@ -19,6 +19,8 @@ interface HomeScreenProps {
   monster:      Monster;
   onMonsterUpdate: (m: Monster) => void;
   onRecordAdd:  (r: FarmRecord) => void;
+  pendingFeed?: Feed | null;
+  onPendingFeedConsumed?: () => void;
   onGoFeed:     () => void;
   onGoCreate:   () => void;
 }
@@ -34,7 +36,13 @@ const INITIAL_UI: FeedingUIState = {
 };
 
 export function HomeScreen({
-  monster, onMonsterUpdate, onRecordAdd, onGoFeed, onGoCreate,
+  monster,
+  onMonsterUpdate,
+  onRecordAdd,
+  pendingFeed = null,
+  onPendingFeedConsumed,
+  onGoFeed,
+  onGoCreate,
 }: HomeScreenProps): JSX.Element {
   const [ui, setUI] = useState<FeedingUIState>(INITIAL_UI);
   const timerIdsRef = useRef<number[]>([]);
@@ -57,19 +65,18 @@ export function HomeScreen({
 
   const isFeeding = ui.foodPhase !== 'none';
 
-  // カテゴリを直接受けてエサやり（クイックフィード）
-  const handleQuickFeed = useCallback((category: FeedCategory) => {
-    if (isFeeding) return;
+  // Feedを受け取って既存の2口給餌シーケンスを実行する共通処理
+  const feedMonster = useCallback((feed: Feed) => {
+    if (isFeeding) return false;
     clearTimers();
 
-    const feed     = createFeed({ name: category, category });
     const analysis = analyzeFeed(monster, feed);
     const beforeStatus = { ...monster.status };
 
     runFeedSequence({
       monster,
       reaction:     analysis.reaction,
-      feedCategory: category,
+      feedCategory: feed.category,
       schedule,
       setUI: updater => setUI(prev => updater(prev)),
       onComplete: (updated) => {
@@ -85,7 +92,21 @@ export function HomeScreen({
         onRecordAdd(rec);
       },
     });
+
+    return true;
   }, [isFeeding, monster, clearTimers, schedule, onMonsterUpdate, onRecordAdd]);
+
+  useEffect(() => {
+    if (!pendingFeed) return;
+    const started = feedMonster(pendingFeed);
+    if (started) onPendingFeedConsumed?.();
+  }, [pendingFeed, feedMonster, onPendingFeedConsumed]);
+
+  // カテゴリを直接受けてエサやり（クイックフィード）
+  const handleQuickFeed = useCallback((category: FeedCategory) => {
+    const feed = createFeed({ name: category, category });
+    feedMonster(feed);
+  }, [feedMonster]);
 
   return (
     <div className="screen home-screen">
